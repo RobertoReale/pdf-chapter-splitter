@@ -124,7 +124,7 @@ class TocDialog(tk.Toplevel):
         for ch in self.chapters:
             if top_only and ch["level"] > 0:
                 continue
-            default = saved.get(ch["title"], ch["level"] == 0)
+            default = saved.get(ch["title"], False)
             var = tk.BooleanVar(value=default)
             self.row_vars.append((var, ch))
             indent = "    " * ch["level"]
