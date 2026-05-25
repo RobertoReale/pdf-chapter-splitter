@@ -290,6 +290,8 @@ class App(tk.Tk):
                   command=lambda: self._set_all(True)).pack(side=tk.LEFT, padx=2)
         tk.Button(bottom, text="Deselect all",
                   command=lambda: self._set_all(False)).pack(side=tk.LEFT, padx=2)
+        tk.Button(bottom, text="Delete all", fg="#dc2626",
+                  command=self._delete_all_chapters).pack(side=tk.LEFT, padx=6)
 
         tk.Button(bottom, text="⬇  Extract selected chapters",
                   bg="#2563eb", fg="white", font=("", 10, "bold"),
@@ -408,6 +410,15 @@ class App(tk.Tk):
     def _delete_chapter(self, row: ChapterRow):
         row.destroy()
         self.chapter_rows.remove(row)
+
+    def _delete_all_chapters(self):
+        if not self.chapter_rows:
+            return
+        if messagebox.askyesno("Confirm Delete", "Are you sure you want to delete all chapters?"):
+            for row in self.chapter_rows:
+                row.destroy()
+            self.chapter_rows.clear()
+            self._set_status("All chapters deleted.")
 
     def _set_all(self, value: bool):
         for row in self.chapter_rows:
