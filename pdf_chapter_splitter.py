@@ -58,7 +58,7 @@ class TocDialog(tk.Toplevel):
         self.chapters = chapters        # full list [{title, page, level}]
         self.total_pages = total_pages
         self.on_import = on_import
-        self.row_vars: list[tuple[tk.BooleanVar, dict]] = []
+        self.vars = [tk.BooleanVar(value=False) for _ in self.chapters]
         self._build()
         self.grab_set()
 
@@ -115,44 +115,59 @@ class TocDialog(tk.Toplevel):
                   command=self._import).pack(side=tk.RIGHT, padx=4)
 
     def _refresh(self):
-        saved = {ch["title"]: var.get() for var, ch in self.row_vars}
         for w in self._list_frame.winfo_children():
             w.destroy()
-        self.row_vars.clear()
 
         top_only = self.show_var.get() == "top"
-        for ch in self.chapters:
+        for i, ch in enumerate(self.chapters):
             if top_only and ch["level"] > 0:
                 continue
-            default = saved.get(ch["title"], False)
-            var = tk.BooleanVar(value=default)
-            self.row_vars.append((var, ch))
+            
+            var = self.vars[i]
             indent = "    " * ch["level"]
             label = f"{indent}{ch['title']}   (p. {ch['page']})"
-            tk.Checkbutton(self._list_frame, text=label, variable=var,
-                           anchor="w", justify="left").pack(fill=tk.X, padx=6, pady=1)
+            cb = tk.Checkbutton(self._list_frame, text=label, variable=var,
+                           anchor="w", justify="left")
+            cb.config(command=lambda i=i: self._on_toggle(i))
+            cb.pack(fill=tk.X, padx=6, pady=1)
+
+    def _on_toggle(self, index):
+        is_selected = self.vars[index].get()
+        level = self.chapters[index]["level"]
+        # Cascade down: select/deselect all sub-chapters
+        for i in range(index + 1, len(self.chapters)):
+            if self.chapters[i]["level"] > level:
+                self.vars[i].set(is_selected)
+            else:
+                break
 
     def _set_all(self, value: bool):
-        for var, _ in self.row_vars:
+        for var in self.vars:
             var.set(value)
 
     def _import(self):
-        selected = [ch for var, ch in self.row_vars if var.get()]
-        if not selected:
+        selected_indices = [i for i, var in enumerate(self.vars) if var.get()]
+        if not selected_indices:
             messagebox.showwarning("Warning", "No entries selected.", parent=self)
             return
 
-        selected.sort(key=lambda c: c["page"])
-
-        # Use full outline start pages to infer end of each selected chapter
-        all_starts = sorted({ch["page"] for ch in self.chapters})
-
         result = []
-        for ch in selected:
+        for i in selected_indices:
+            ch = self.chapters[i]
             start = ch["page"]
-            later = [p for p in all_starts if p > start]
-            end = (later[0] - 1) if later else self.total_pages
+            end = self.total_pages
+            
+            # Find the next chapter of the SAME or HIGHER level (i.e. level <= ch["level"])
+            for j in range(i + 1, len(self.chapters)):
+                if self.chapters[j]["level"] <= ch["level"]:
+                    next_start = self.chapters[j]["page"]
+                    if next_start > start:
+                        end = next_start - 1
+                        break
+            
             result.append({"title": ch["title"], "start": start, "end": end})
+
+        result.sort(key=lambda x: x["start"])
 
         self.on_import(result)
         self.destroy()
