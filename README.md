@@ -4,13 +4,13 @@ A robust, GUI-based Python application that allows you to easily extract chapter
 
 ## Features
 
-- 📑 **Auto-detect Table of Contents**: Automatically reads the embedded outline/TOC of the PDF and allows you to import chapters with a single click.
-- 🎯 **Manual Chapter Entry**: Add custom ranges and names if your PDF doesn't have an embedded TOC.
-- 🗂️ **Extract & Merge**: 
+- **Auto-detect Table of Contents**: Automatically reads the embedded outline/TOC of the PDF and allows you to import chapters with a single click.
+- **Manual Chapter Entry**: Add custom ranges and names if your PDF doesn't have an embedded TOC.
+- **Extract & Merge**: 
   - **Extract**: Export all selected chapters into their own separate PDF files with customizable filenames.
   - **Merge**: Combine all selected chapters into a single PDF document.
-- 🖱️ **Drag and Drop**: Simply drag a PDF onto the window to open it (requires `tkinterdnd2`).
-- 🛡️ **Robust & Stable**: Multi-threaded extraction ensures the UI never freezes, even with large PDFs. Built-in exception handling safely warns you if files are locked or cannot be written.
+- **Drag and Drop**: Simply drag a PDF onto the window to open it (requires `tkinterdnd2`).
+- **Robust & Stable**: Multi-threaded extraction ensures the UI never freezes, even with large PDFs. Built-in exception handling safely warns you if files are locked or cannot be written.
 
 ## Prerequisites
 
