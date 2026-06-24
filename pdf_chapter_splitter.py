@@ -22,6 +22,7 @@ try:
     _DND = True
 except ImportError:
     DND_FILES = None
+    TkinterDnD = None
     _DND = False
 
 
@@ -265,7 +266,7 @@ class ChapterRow(tk.Frame):
 # Main window
 # ──────────────────────────────────────────────
 
-_BASE = TkinterDnD.Tk if _DND else tk.Tk
+_BASE = TkinterDnD.Tk if _DND else tk.Tk  # type: ignore[union-attr]
 
 class App(_BASE):  # type: ignore[valid-type, misc]
     def __init__(self):
@@ -563,11 +564,24 @@ class App(_BASE):  # type: ignore[valid-type, misc]
             messagebox.showwarning("No valid chapters", "\n".join(errors))
             return
 
-        # Group chunks by their output filename
-        groups: dict[str, list] = {}
+        # Group chunks into output files:
+        #   • rows that share an EXPLICIT name in the File column are merged
+        #     into one PDF;
+        #   • rows with a blank File column each get their own PDF (named after
+        #     the chapter). Duplicate filenames are made unique when writing.
+        groups: list[tuple[str, list]] = []
+        explicit: dict[str, list] = {}
         for d, s, e in valid:
-            key = sanitize_filename(d["output"] or d["name"]) or "chapter"
-            groups.setdefault(key, []).append((d, s, e))
+            out = sanitize_filename(d["output"]) if d["output"].strip() else ""
+            if out:
+                chunks = explicit.get(out)
+                if chunks is None:
+                    chunks = []
+                    explicit[out] = chunks
+                    groups.append((out, chunks))
+                chunks.append((d, s, e))
+            else:
+                groups.append((sanitize_filename(d["name"]) or "chapter", [(d, s, e)]))
 
         self._set_busy(True)
 
@@ -575,7 +589,7 @@ class App(_BASE):  # type: ignore[valid-type, misc]
             try:
                 reader = PdfReader(pdf_path)
                 saved, total = 0, len(groups)
-                for n, (fname, chunks) in enumerate(groups.items(), 1):
+                for n, (fname, chunks) in enumerate(groups, 1):
                     writer = PdfWriter()
                     for d, s, e in chunks:
                         off = len(writer.pages)
