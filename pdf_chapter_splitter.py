@@ -152,11 +152,19 @@ class TocDialog(tk.Toplevel):
                 break
 
     def _set_all(self, value: bool):
-        for var in self.vars:
-            var.set(value)
+        top_only = self.show_var.get() == "top"
+        for i, var in enumerate(self.vars):
+            if top_only and self.chapters[i]["level"] > 0:
+                var.set(False)
+            else:
+                var.set(value)
 
     def _import(self):
-        selected = [i for i, v in enumerate(self.vars) if v.get()]
+        top_only = self.show_var.get() == "top"
+        selected = [
+            i for i, v in enumerate(self.vars)
+            if v.get() and (not top_only or self.chapters[i]["level"] == 0)
+        ]
         if not selected:
             messagebox.showwarning("Warning", "No entries selected.", parent=self)
             return
@@ -165,11 +173,18 @@ class TocDialog(tk.Toplevel):
             ch = self.chapters[i]
             end = self.total_pages
             for j in range(i + 1, len(self.chapters)):
-                if self.chapters[j]["level"] <= ch["level"]:
-                    nxt = self.chapters[j]["page"]
-                    if nxt > ch["page"]:
-                        end = nxt - 1
-                        break
+                if top_only:
+                    if self.chapters[j]["level"] == 0:
+                        nxt = self.chapters[j]["page"]
+                        if nxt > ch["page"]:
+                            end = nxt - 1
+                            break
+                else:
+                    if self.chapters[j]["level"] <= ch["level"]:
+                        nxt = self.chapters[j]["page"]
+                        if nxt > ch["page"]:
+                            end = nxt - 1
+                            break
             result.append({"title": ch["title"], "start": ch["page"], "end": end})
         result.sort(key=lambda x: x["start"])
         self.on_import(result)
@@ -591,11 +606,17 @@ class App(_BASE):  # type: ignore[valid-type, misc]
                 saved, total = 0, len(groups)
                 for n, (fname, chunks) in enumerate(groups, 1):
                     writer = PdfWriter()
+                    added_pages: dict[int, int] = {}
                     for d, s, e in chunks:
-                        off = len(writer.pages)
+                        first_added = None
                         for i in range(s, e + 1):
-                            writer.add_page(reader.pages[i])
-                        writer.add_outline_item(d["name"], off)
+                            if i not in added_pages:
+                                added_pages[i] = len(writer.pages)
+                                writer.add_page(reader.pages[i])
+                            if first_added is None:
+                                first_added = added_pages[i]
+                        if first_added is not None:
+                            writer.add_outline_item(d["name"], first_added)
 
                     path = os.path.join(out_dir, f"{fname}.pdf")
                     base, ext = os.path.splitext(path)
@@ -650,12 +671,18 @@ class App(_BASE):  # type: ignore[valid-type, misc]
             try:
                 reader = PdfReader(pdf_path)
                 writer = PdfWriter()
+                added_pages: dict[int, int] = {}
                 total = len(valid)
                 for n, (d, s, e) in enumerate(valid, 1):
-                    off = len(writer.pages)
+                    first_added = None
                     for i in range(s, e + 1):
-                        writer.add_page(reader.pages[i])
-                    writer.add_outline_item(d["name"], off)
+                        if i not in added_pages:
+                            added_pages[i] = len(writer.pages)
+                            writer.add_page(reader.pages[i])
+                        if first_added is None:
+                            first_added = added_pages[i]
+                    if first_added is not None:
+                        writer.add_outline_item(d["name"], first_added)
                     self.after(0, self._tick, n, total)
 
                 with open(out_path, "wb") as f:
